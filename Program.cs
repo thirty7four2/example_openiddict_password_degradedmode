@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using OpenIddict.Validation;
 using openiddict_password_degradedmode;
 using openiddict_password_degradedmode.Contexts;
 using static OpenIddict.Abstractions.OpenIddictConstants;
+using static openiddict_password_degradedmode.Handlers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,13 +29,7 @@ builder.Services.AddOpenIddict()
         options.UseLocalServer();
         options.UseAspNetCore();
 
-        options.AddEventHandler<OpenIddictValidationEvents.ProcessRequestContext>(builder =>
-            builder.UseInlineHandler(context =>
-            {
-                context.Logger.LogInformation($"Got request at {context.RequestUri}");
-                return default;
-            }
-        ));
+        options.AddEventHandler(ProcessRequestContextHandler.Descriptor);
 
         options.AddEventHandler(Handlers.ProcessChallengeContextHandler.Descriptor);
     });
@@ -48,7 +42,7 @@ builder.Services.AddOpenIddict()
 
         // Enable the password flow.
         options.AllowPasswordFlow();
-        
+
         // Register the signing and encryption credentials.
         options.AddDevelopmentEncryptionCertificate()
                .AddDevelopmentSigningCertificate();
@@ -75,27 +69,15 @@ builder.Services.AddOpenIddict()
             }
         ));
 
-        options.AddEventHandler<OpenIddict.Server.OpenIddictServerEvents.ApplyTokenResponseContext>(builder =>
-            builder.UseInlineHandler(context =>
-            {
-                if (string.IsNullOrWhiteSpace(context.Error))
-                {
-                    // can add parameter to response here
-                    context.Response.AddParameter("some_int", new OpenIddict.Abstractions.OpenIddictParameter(1));
-                    context.Response.AddParameter("some_string", new OpenIddict.Abstractions.OpenIddictParameter("foo"));
-                }
-
-                return default;
-            }
-        ));
+        options.AddEventHandler(Handlers.ApplyTokenResponseContextHandler.Descriptor);
     })
     .AddCore();
 
 
 builder.Services.AddAuthentication(options =>
-    {
-        options.DefaultScheme = OpenIddict.Validation.AspNetCore.OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme;
-    })
+{
+    options.DefaultScheme = OpenIddict.Validation.AspNetCore.OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme;
+})
     .AddBearerToken();
 
 var app = builder.Build();
